@@ -1,8 +1,9 @@
 package daemon
 
 import (
-	"github.com/spf13/pflag"
 	"log"
+
+	"github.com/spf13/pflag"
 	"github.com/ylallemant/panopticon/pkg/process"
 
 	"github.com/spf13/cobra"
@@ -18,14 +19,13 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-	
+
 		// map ages
 		for _, entry := range list {
-			log.Printf("\t%d\t%d\t%s\n",entry.Pid(),entry.PPid(),entry.Executable())
-	
+			log.Printf("\t%d\t%d\t%s\n", entry.GetPID(), entry.GetPPID(), entry.GetCommand())
+
 			// do os.* stuff on the pid
 		}
-	
 
 		return nil
 	},

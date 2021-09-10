@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ylallemant/panopticon/pkg/api"
+	api "github.com/ylallemant/panopticon/pkg/api/v1"
 	"github.com/ylallemant/panopticon/pkg/chronos"
 )
 
 const (
-	timeDayFormat  = "2006-January-_2 3:04PM"
-	timeWeekFormat = "2006-January-_2 Mon03PM"
+	timeDayFormat  = "2006-January-_2 3:04PM MST"
+	timeWeekFormat = "2006-January-_2 Mon03PM MST"
 	timeFormat     = "_2Jan06 15:04"
 	timeTypeDay    = "DAY"
 	timeTypeWeek   = "WEEK"
@@ -86,20 +86,23 @@ func processFromLine(line string) (*api.Process, error) {
 		cmdIndex = len(parts) - 1
 	}
 
-	process.PID, err = strconv.Atoi(parts[1])
+	PID, err := strconv.ParseInt(parts[1], 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	process.PID = int32(PID)
 
-	process.PPID, err = strconv.Atoi(parts[2])
+	PPID, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	process.PPID = int32(PPID)
 
-	process.UserID, err = strconv.Atoi(parts[0])
+	UserID, err := strconv.ParseInt(parts[0], 10, 32)
 	if err != nil {
 		return nil, err
 	}
+	process.UserID = int32(UserID)
 
 	processUser, err := user.LookupId(parts[0])
 	if err != nil {
@@ -113,10 +116,17 @@ func processFromLine(line string) (*api.Process, error) {
 		return nil, err
 	}
 
-	process.StartTime = startTime
+	//log.Printf("\t\tstart: %s", startTime)
+	now := time.Now().UTC()
+	//log.Printf("\t\t  now: %s", now)
+	uptime := now.Sub(startTime)
+	//log.Printf("\t\t diff: %s", uptime)
+
+	process.Uptime = chronos.ToSeconds(uptime)
+	//log.Printf("%s\tuptime = %s \t\t=>%d\n", parts[4], uptime, process.Uptime)
 
 	process.Command = parts[cmdIndex]
-	//log.Printf("\t%+#v\n", process.StartTime.String())
+	//log.Printf("\t%+#v\n", process)
 
 	return process, nil
 }
@@ -124,10 +134,12 @@ func processFromLine(line string) (*api.Process, error) {
 func parseTime(raw string) (time.Time, error) {
 	format := ""
 	now := time.Now()
+	//trueRaw := raw
+	zone, _ := now.Zone()
 
 	if timeDayRegexp.Match([]byte(raw)) {
 		format = timeDayFormat
-		raw = fmt.Sprintf("%d-%s-%d %s", now.Year(), now.Month(), now.Day(), raw)
+		raw = fmt.Sprintf("%d-%s-%d %s %s", now.Year(), now.Month(), now.Day(), raw, zone)
 	} else if timeWeekRegexp.Match([]byte(raw)) {
 		format = timeWeekFormat
 		weekday := raw[:3]
@@ -136,7 +148,7 @@ func parseTime(raw string) (time.Time, error) {
 			return time.Time{}, err
 		}
 
-		raw = fmt.Sprintf("%d-%s-%d %s", day.Year(), day.Month(), day.Day(), raw)
+		raw = fmt.Sprintf("%d-%s-%d %s %s", day.Year(), day.Month(), day.Day(), raw, zone)
 	} else if timeRegexp.Match([]byte(raw)) {
 		format = timeFormat
 		raw = fmt.Sprintf("%s 12:00", raw)
@@ -149,5 +161,5 @@ func parseTime(raw string) (time.Time, error) {
 	}
 
 	//log.Printf("   %s => %s\t\t=> %s (%s)", trueRaw, raw, parsed, format)
-	return parsed, nil
+	return parsed.UTC(), nil
 }

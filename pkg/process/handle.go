@@ -3,7 +3,7 @@ package process
 import (
 	"os"
 
-	"github.com/ylallemant/panopticon/pkg/api"
+	api "github.com/ylallemant/panopticon/pkg/api/v1"
 )
 
 func List() ([]*api.Process, error) {

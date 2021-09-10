@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package v1;
+option go_package = "github.com/ylallemant/panopticon/v1";
+
+/*
+* Process represents one host process
+*/
+message Process {
+    int32 PID = 1;       // Process ID
+    int32 PPID = 2;      // Parent Process ID
+    int32 UserID = 3;    // User ID running the process
+    string User = 4;     // User name running the process
+    int64 Uptime = 5;    // Process uptime in seconds
+    string Command = 6;  // Process command
+}
+
+/*
+* ProcessReport represents a report about all processes
+* running on a specific host
+*/
+message ProcessReport {
+    string hostname = 1;            // Host name
+    string os = 2;                  // Host OS
+    repeated Process processes = 3; // List of processes
+}
+
+/*
+* Weekdays enumeration of the short names
+*/
+enum Weekdays {
+    UnknownWeekday = 0;
+    Mon = 1;
+    Tus = 2;
+    Wed = 3;
+    Thu = 4;
+    Fri = 5;
+    Sat = 6;
+    Son = 7;
+}
+
+/*
+* LimitStatus
+*/
+enum DurationLimitStatus {
+    UNLIMITED = 0; // no limit set, value is -1
+    BLOCKED = 1;   // blocked, value is 0
+    LIMITED = 2;   // limited, value is > 0
+    UNTRACKED = 3; // untracked by the system, value is MAX INT
+}
+
+/*
+* DailyLimit represents a duration limit for a specific weekday
+*/
+message DailyDurationLimit {
+    string Weekday = 1; // Weekday short name
+    int64 limit = 2;    // Time limit in seconds
+}
+
+/*
+* DailySleepTime represents a time limit for a specific weekday
+*/
+message DailyTimeLimit {
+    string Weekday = 1;
+    string time = 2;
+}
+
+/*
+* Host represents a device tracked by the system
+*/
+message Host {
+    repeated string Admins = 1;                            // List of users that are viewed as admins by the system (rules don't apply to them)
+    repeated string Users = 2;                             // List of active users on the device. Discovered by the Process Reports
+    repeated DailyDurationLimit DefaultDurationLimits = 3; // Default daily duration limits for the device
+    repeated DailyTimeLimit DefaultTimeLimits = 4;         // Default daily time limits for the device
+}
+
+/*
+* Application represents the definition for
+* an application tracked by the system
+*/
+message Application {
+    string Name = 1;                                       // Name of the application
+    repeated string Regexps = 2;                           // List of regular expressions that match the application process commands
+    repeated DailyDurationLimit DefaultDurationLimits = 3; // Default daily limits for the application
+    repeated DailyTimeLimit DefaultTimeLimits = 4;         // Default daily time limits for the application
+}
+
+/*
+* UserLimits represents limitations for a specific user
+*/
+message UserLimits {
+    string username = 1;                         // Name of the user
+    repeated DailyDurationLimit Device = 2;      // User specific daily device duration limits
+    repeated DailyDurationLimit Application = 3; // User specific daily application duration limits
+    repeated DailyDurationLimit Activity = 4;    // User specific daily activity duration limits
+    repeated DailyTimeLimit SleepTime = 5;       // User specific daily bed times
+    bool Blocked = 6;                            // Whether or not the user is blocked
+}
+
+/*
+* User represents a user tracked by the system
+*/
+message User {
+    string name = 1;                 // Name of the user
+    map<string, string> devices = 2; // Usernames on specific devices
+}
