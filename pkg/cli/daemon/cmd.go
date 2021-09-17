@@ -1,12 +1,19 @@
 package daemon
 
 import (
+	"fmt"
 	"log"
-
-	"github.com/spf13/pflag"
-	"github.com/ylallemant/panopticon/pkg/process"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/ylallemant/panopticon/pkg/cli/daemon/options"
+	serverOtions "github.com/ylallemant/panopticon/pkg/cli/server/options"
+	runtime "github.com/ylallemant/panopticon/pkg/daemon"
+	"github.com/ylallemant/panopticon/pkg/server"
+	"github.com/ylallemant/panopticon/pkg/server/service/graceful"
 )
 
 var rootCmd = &cobra.Command{
@@ -14,24 +21,46 @@ var rootCmd = &cobra.Command{
 	Short: "used to monitor a host",
 	Long:  ``,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		startDefaultServer := false
 
-		list, err := process.List()
+		if options.Current.Endpoint == "" {
+			options.Current.Endpoint = fmt.Sprintf("grpc://localhost:%d", serverOtions.Current.Ports.GRPC)
+			startDefaultServer = true
+		}
+
+		processes := graceful.NewProcessBucket()
+
+		deamon, err := runtime.NewDaemon(options.Current)
 		if err != nil {
 			return err
 		}
 
-		// map ages
-		for _, entry := range list {
-			log.Printf("\t%d\t%d\t%s\n", entry.GetPID(), entry.GetPPID(), entry.GetCommand())
+		processes.AddProcess(deamon)
 
-			// do os.* stuff on the pid
+		if startDefaultServer {
+			serverOptions := serverOtions.Current
+			service := server.NewServer(serverOptions)
+			processes.AddProcess(service)
 		}
+
+		signal.Notify(processes.SigChan(), syscall.SIGTERM, os.Interrupt)
+
+		processes.Init()
+
+		if err := processes.Start(); err != nil {
+			log.Fatalf("Failed to boot application: %s", err)
+		}
+
+		processes.Wait()
 
 		return nil
 	},
 }
 
 func Command() *cobra.Command {
+	rootCmd.Flags().StringVar(&options.Current.Endpoint, "endpoint", options.Current.Endpoint, "target server url")
+	rootCmd.Flags().DurationVar(&options.Current.Period, "period", options.Current.Period, "reporting period")
+
 	pflag.CommandLine.AddFlagSet(rootCmd.Flags())
 	return rootCmd
 }

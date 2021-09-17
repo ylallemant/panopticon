@@ -13,16 +13,30 @@ message Process {
     string User = 4;     // User name running the process
     int64 Uptime = 5;    // Process uptime in seconds
     string Command = 6;  // Process command
+    int32 childs = 7;    // child process count
+}
+
+/*
+* ProcessReport holds information about a specific application process
+*/
+message ProcessReport {
+    string name = 1;     // application name
+    int64 firstSeen = 2; // timestamp of the first occurance
+    int64 lastSeen = 3;  // timestamp of the last occurance
+    int64 uptime = 4;    // cumulated runtime
 }
 
 /*
 * ProcessReport represents a report about all processes
 * running on a specific host
 */
-message ProcessReport {
+message HostProcessReport {
     string hostname = 1;            // Host name
-    string os = 2;                  // Host OS
-    repeated Process processes = 3; // List of processes
+    string arch = 2;                // Host Architecture
+    string os = 3;                  // Host OS
+    int64 timestamp = 4;            // Reporting time
+    int64 interval = 5;             // Reporting interval
+    repeated Process processes = 6; // List of processes
 }
 
 /*
@@ -65,14 +79,25 @@ message DailyTimeLimit {
     string time = 2;
 }
 
+message HostUser {
+    int32 id = 1;
+    string name = 2;
+}
+
 /*
 * Host represents a device tracked by the system
 */
 message Host {
-    repeated string Admins = 1;                            // List of users that are viewed as admins by the system (rules don't apply to them)
-    repeated string Users = 2;                             // List of active users on the device. Discovered by the Process Reports
-    repeated DailyDurationLimit DefaultDurationLimits = 3; // Default daily duration limits for the device
-    repeated DailyTimeLimit DefaultTimeLimits = 4;         // Default daily time limits for the device
+    string name = 1;                                       // Hostname
+    string arch = 2;                                       // Hostname architecture
+    string os = 3;                                         // Hostname OS
+    repeated HostUser Admins = 4;                          // List of users that are viewed as admins by the system (rules don't apply to them)
+    repeated HostUser Users = 5;                           // List of active users on the device. Discovered by the Process Reports
+    map<string, HostUser> UserMapping = 6;                   // mapping between users on the device and users tracked by the system
+    map<string, ProcessReport> Processes = 7;              // map of runing applications on the host and their process report
+    repeated DailyDurationLimit DefaultDurationLimits = 8; // Default daily duration limits for the device
+    repeated DailyTimeLimit DefaultTimeLimits = 9;         // Default daily time limits for the device
+    bool hasChanged = 10;                                  // flags the host as modified whenever a new user or a new application is registered
 }
 
 /*
@@ -87,10 +112,19 @@ message Application {
 }
 
 /*
+* ClassifiedProcess represents a relation between
+* a process and an application
+*/
+message ClassifiedProcess {
+    Process process = 1;          // Process
+    Application application = 2;  // Matching application
+}
+
+/*
 * UserLimits represents limitations for a specific user
 */
 message UserLimits {
-    string username = 1;                         // Name of the user
+    string Identifier = 1;                       // Identifier of the user (email)
     repeated DailyDurationLimit Device = 2;      // User specific daily device duration limits
     repeated DailyDurationLimit Application = 3; // User specific daily application duration limits
     repeated DailyDurationLimit Activity = 4;    // User specific daily activity duration limits
@@ -102,6 +136,36 @@ message UserLimits {
 * User represents a user tracked by the system
 */
 message User {
-    string name = 1;                 // Name of the user
-    map<string, string> devices = 2; // Usernames on specific devices
+    string Identifier = 1;           // Identifier of the user (email)
+    string Username = 2;             // Name of the user
+    map<string, string> devices = 3; // Usernames on specific devices
+}
+
+/*
+* DeviceCumulatedTime represents the usage duration of something
+*/
+message CumulatedTime {
+    string Identifier = 1;
+    int64 StartTime = 2;
+    int64 Duration = 3;
+}
+
+/*
+* ApplicationCumulatedTime represents the usage duration of something
+*/
+message ApplicationCumulatedTime {
+    string Identifier = 1;
+    int64 Duration = 2;
+    repeated CumulatedTime Durations = 3;
+}
+
+/*
+* UserDailyReport represents a tracked user activity by day
+*/
+message UserDailyReport {
+    int64 timestamp = 1;
+    string Identifier = 2;                   // Identifier of the user (email)
+    repeated ApplicationCumulatedTime applications = 3;
+    repeated CumulatedTime devices = 4;
+    int64 totalDuration = 5;
 }

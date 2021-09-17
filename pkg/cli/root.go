@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/ylallemant/panopticon/pkg/cli/daemon"
 	"github.com/ylallemant/panopticon/pkg/cli/server"
-	"github.com/ylallemant/panopticon/pkg/process"
+	"github.com/ylallemant/panopticon/pkg/daemon/process"
 )
 
 var rootCmd = &cobra.Command{

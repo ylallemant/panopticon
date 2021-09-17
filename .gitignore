@@ -26,3 +26,8 @@ node_modules
 
 # do not ignore those files
 !**/*.md
+
+# building folders
+dist/
+.go/
+.gocache/
