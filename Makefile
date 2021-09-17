@@ -73,3 +73,23 @@ clean-dirs:
 	$(info clean up cache and dist folders)
 	@rm -rf ./dist
 	@rm -rf ./.go
+
+container: check-image build
+	@docker build --quiet -t $(IMAGE):$(TAG) -f hack/release/Dockerfile .
+	$(info container image built $(IMAGE):$(TAG))
+
+ifeq ($(YES), 1)
+push-container: check-image container
+	docker push $(IMAGE):$(TAG)
+else
+push-container:
+	$(warning push disabled. to enable set environment YES=1)
+endif
+
+ifndef IMAGE
+check-image:
+	  $(error env IMAGE is undefined)
+else
+check-image:
+	  $(info target image is $(IMAGE))
+endif
