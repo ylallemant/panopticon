@@ -37,7 +37,6 @@ dist/%: build-dirs
 		--rm \
 		-u $$(id -u):$$(id -g) \
 		-v "$$(pwd):/src" \
-		-v "$$(pwd)/dist/$(OS)/$(ARCH):/go/bin" \
 		-v "$$(pwd)/.gocache/:/go/cache" \
 		-w /src \
 		$(BUILD_IMAGE) \
@@ -54,6 +53,7 @@ dist/%: build-dirs
 
 test: build-dirs
 	$(info run test)
+	@$(MAKE) $(subst cmd, dist/linux/amd64, $(wildcard cmd/*))
 	@docker run \
 		--rm \
 		-u $$(id -u):$$(id -g) \

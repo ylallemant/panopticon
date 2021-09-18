@@ -35,8 +35,6 @@ export GOOS="${OS}"
 export GOCACHE=/go/cache
 export GO111MODULE=on
 
-ls -al /usr/local/go/pkg/tool
-
 go build -x                                                                                      \
     -installsuffix "static"                                                                         \
     -ldflags "-X ${PKG}/pkg/version.GitCommit=${COMMIT} -X ${PKG}/pkg/version.Version=${VERSION}" 	\
