@@ -67,7 +67,8 @@ func listProcesses() ([]*v1.Process, error) {
 
 	rootProcess := reporting.GetRootProcess(runtime.GOOS, list)
 	if rootProcess == nil {
-		return list, fmt.Errorf("root process could not be found for OS %s", runtime.GOOS)
+		log.Printf("WARN: root process could not be found for OS %s", runtime.GOOS)
+		return list, nil
 	}
 
 	for _, process := range list {

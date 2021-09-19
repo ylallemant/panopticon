@@ -37,7 +37,7 @@ Description=Panopticon Daemon
 After=syslog.target
 
 [Service]
-ExecStart=/usr/sbin/panoticon --config-path=/etc/panopticon/daemon/config.yaml
+ExecStart=/usr/sbin/panoticon daemon --config-path=/etc/panopticon/daemon/config.yaml
 Restart=always
 KillSignal=SIGQUIT
 

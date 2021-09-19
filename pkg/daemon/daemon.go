@@ -75,6 +75,11 @@ func (d *daemon) tick() error {
 		return err
 	}
 
+	if len(list) == 0 {
+		log.Printf("empty process list - nothing to report")
+		return nil
+	}
+
 	log.Printf("%d processe found", len(list))
 	request := &v1.HostProcessReportRequest{
 		Report: &v1.HostProcessReport{
