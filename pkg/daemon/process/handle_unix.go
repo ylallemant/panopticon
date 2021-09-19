@@ -9,17 +9,21 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	api "github.com/ylallemant/panopticon/pkg/api/v1"
+	v1 "github.com/ylallemant/panopticon/pkg/api/v1"
 	"github.com/ylallemant/panopticon/pkg/chronos"
+	"github.com/ylallemant/panopticon/pkg/reporting"
 )
 
 const (
+	time24Format   = "2006-January-_2 15:04 MST"
 	timeDayFormat  = "2006-January-_2 3:04PM MST"
 	timeWeekFormat = "2006-January-_2 Mon03PM MST"
+	timeDateFormat = "Jan_22006 15:04"
 	timeFormat     = "_2Jan06 15:04"
 	timeTypeDay    = "DAY"
 	timeTypeWeek   = "WEEK"
@@ -28,22 +32,25 @@ const (
 )
 
 var (
+	numberRegexp   = regexp.MustCompile(`\d+`)
 	spacesRegexp   = regexp.MustCompile(`\s+`)
 	newlineRegexp  = regexp.MustCompile(`\n`)
 	timeDayRegexp  = regexp.MustCompile(`(\d{1,2}):(\d{2})(PM|AM)`)
+	time24Regexp   = regexp.MustCompile(`(\d{1,2}):(\d{2})`)
+	timeDateRegexp = regexp.MustCompile(`([a-zA-Z]{3})(\d{1,2})`)
 	timeWeekRegexp = regexp.MustCompile(`([a-zA-Z]{3})(\d{2})(PM|AM)`)
 	timeRegexp     = regexp.MustCompile(`(\d{1,2})([a-zA-Z]{3})(\d{2})`)
 	cmdIndex       = 0
 )
 
-func listProcesses() ([]*api.Process, error) {
+func listProcesses() ([]*v1.Process, error) {
 	out, err := exec.Command("ps", "-efw").Output()
 	if err != nil {
 		return nil, err
 	}
 
 	lines := newlineRegexp.Split(string(out), -1)
-	list := []*api.Process{}
+	list := []*v1.Process{}
 	log.Printf("%d lines found", len(lines))
 
 	for _, line := range lines {
@@ -58,8 +65,13 @@ func listProcesses() ([]*api.Process, error) {
 		}
 	}
 
+	rootProcess := reporting.GetRootProcess(runtime.GOOS, list)
+	if rootProcess == nil {
+		return list, fmt.Errorf("root process could not be found for OS %s", runtime.GOOS)
+	}
+
 	for _, process := range list {
-		if process.GetPPID() < 2 {
+		if process.GetPPID() <= rootProcess.GetPID() {
 			childs := 0
 
 			for _, current := range list {
@@ -82,7 +94,7 @@ func sanitizeLine(line string) string {
 	return line
 }
 
-func processFromLine(line string) (*api.Process, error) {
+func processFromLine(line string) (*v1.Process, error) {
 	line = sanitizeLine(line)
 
 	if line == "" {
@@ -92,9 +104,8 @@ func processFromLine(line string) (*api.Process, error) {
 	if strings.HasPrefix(line, "UID PID PPID") {
 		return nil, nil
 	}
-	//log.Printf("\t%s\n", line)
 
-	process := new(api.Process)
+	process := new(v1.Process)
 	var err error
 
 	// UID PID PPID C STIME TTY TIME CMD
@@ -106,31 +117,48 @@ func processFromLine(line string) (*api.Process, error) {
 
 	PID, err := strconv.ParseInt(parts[1], 10, 32)
 	if err != nil {
+		reporting.PrintProcessLine(line)
 		return nil, err
 	}
 	process.PID = int32(PID)
 
 	PPID, err := strconv.ParseInt(parts[2], 10, 32)
 	if err != nil {
+		reporting.PrintProcessLine(line)
 		return nil, err
 	}
 	process.PPID = int32(PPID)
 
-	UserID, err := strconv.ParseInt(parts[0], 10, 32)
+	var processUser *user.User
+
+	if numberRegexp.Match([]byte(parts[0])) {
+		processUser, err = user.LookupId(parts[0])
+		if err != nil {
+			reporting.PrintProcessLine(line)
+			return nil, err
+		}
+	} else {
+		processUser, err = user.Lookup(parts[0])
+		if err != nil {
+			// TODO : ignore unknown users
+			reporting.PrintProcessLine(line)
+			log.Printf("WARN: user %s unknown", parts[0])
+			return nil, nil
+		}
+	}
+
+	UserID, err := strconv.ParseInt(processUser.Uid, 10, 32)
 	if err != nil {
+		reporting.PrintProcessLine(line)
 		return nil, err
 	}
+
 	process.UserID = int32(UserID)
-
-	processUser, err := user.LookupId(parts[0])
-	if err != nil {
-		return nil, err
-	}
-
 	process.User = processUser.Username
 
 	startTime, err := parseTime(parts[4])
 	if err != nil {
+		reporting.PrintProcessLine(line)
 		return nil, err
 	}
 
@@ -158,6 +186,9 @@ func parseTime(raw string) (time.Time, error) {
 	if timeDayRegexp.Match([]byte(raw)) {
 		format = timeDayFormat
 		raw = fmt.Sprintf("%d-%s-%d %s %s", now.Year(), now.Month(), now.Day(), raw, zone)
+	} else if time24Regexp.Match([]byte(raw)) {
+		format = time24Format
+		raw = fmt.Sprintf("%d-%s-%d %s %s", now.Year(), now.Month(), now.Day(), raw, zone)
 	} else if timeWeekRegexp.Match([]byte(raw)) {
 		format = timeWeekFormat
 		weekday := raw[:3]
@@ -167,6 +198,9 @@ func parseTime(raw string) (time.Time, error) {
 		}
 
 		raw = fmt.Sprintf("%d-%s-%d %s %s", day.Year(), day.Month(), day.Day(), raw, zone)
+	} else if timeDateRegexp.Match([]byte(raw)) {
+		format = timeDateFormat
+		raw = fmt.Sprintf("%s%d 12:00", raw, now.Year())
 	} else if timeRegexp.Match([]byte(raw)) {
 		format = timeFormat
 		raw = fmt.Sprintf("%s 12:00", raw)

@@ -32,12 +32,15 @@ var (
 		Username:   "Yann",
 		Devices: map[string]string{
 			"Yanns-MacBook-Pro.local": "y.lallemant",
+			"aline-pc":                "pi",
 		},
 	}
 	firefox = &v1.Application{
-		Name: "Firefox",
+		Name: "browser",
 		Regexps: []string{
 			"firefox",
+			"\\/usr\\/lib\\/firefox-esr",
+			"\\/usr\\/lib\\/chromium-browser",
 		},
 		DefaultDurationLimits: []*v1.DailyDurationLimit{},
 		DefaultTimeLimits:     []*v1.DailyTimeLimit{},

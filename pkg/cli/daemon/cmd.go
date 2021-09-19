@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/ylallemant/panopticon/pkg/cli/daemon/options"
-	serverOtions "github.com/ylallemant/panopticon/pkg/cli/server/options"
-	runtime "github.com/ylallemant/panopticon/pkg/daemon"
+	daemonOptions "github.com/ylallemant/panopticon/pkg/cli/daemon/options"
+	serverOptions "github.com/ylallemant/panopticon/pkg/cli/server/options"
+	"github.com/ylallemant/panopticon/pkg/daemon"
 	"github.com/ylallemant/panopticon/pkg/server"
 	"github.com/ylallemant/panopticon/pkg/server/service/graceful"
 )
@@ -23,14 +23,23 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		startDefaultServer := false
 
-		if options.Current.Endpoint == "" {
-			options.Current.Endpoint = fmt.Sprintf("grpc://localhost:%d", serverOtions.Current.Ports.GRPC)
+		if daemonOptions.Current.ConfigPath != "" {
+			fileOptions, err := daemonOptions.Current.Load(daemonOptions.Current.ConfigPath)
+			if err != nil {
+				return err
+			}
+
+			daemonOptions.Current = fileOptions
+		}
+
+		if daemonOptions.Current.Endpoint == "" {
+			daemonOptions.Current.Endpoint = fmt.Sprintf("grpc://localhost:%d", serverOptions.Current.Ports.GRPC)
 			startDefaultServer = true
 		}
 
 		processes := graceful.NewProcessBucket()
 
-		deamon, err := runtime.NewDaemon(options.Current)
+		deamon, err := daemon.NewDaemon(daemonOptions.Current)
 		if err != nil {
 			return err
 		}
@@ -38,7 +47,7 @@ var rootCmd = &cobra.Command{
 		processes.AddProcess(deamon)
 
 		if startDefaultServer {
-			serverOptions := serverOtions.Current
+			serverOptions := serverOptions.Current
 			service := server.NewServer(serverOptions)
 			processes.AddProcess(service)
 		}
@@ -58,8 +67,9 @@ var rootCmd = &cobra.Command{
 }
 
 func Command() *cobra.Command {
-	rootCmd.Flags().StringVar(&options.Current.Endpoint, "endpoint", options.Current.Endpoint, "target server url")
-	rootCmd.Flags().DurationVar(&options.Current.Period, "period", options.Current.Period, "reporting period")
+	rootCmd.Flags().StringVar(&daemonOptions.Current.ConfigPath, "config-path", daemonOptions.Current.ConfigPath, "path to configuration file")
+	rootCmd.Flags().StringVar(&daemonOptions.Current.Endpoint, "endpoint", daemonOptions.Current.Endpoint, "target server url")
+	rootCmd.Flags().DurationVar(&daemonOptions.Current.Period, "period", daemonOptions.Current.Period, "reporting period")
 
 	pflag.CommandLine.AddFlagSet(rootCmd.Flags())
 	return rootCmd

@@ -7,6 +7,7 @@ import (
 	v1 "github.com/ylallemant/panopticon/pkg/api/v1"
 	"github.com/ylallemant/panopticon/pkg/chronos"
 	"github.com/ylallemant/panopticon/pkg/cli/daemon/options"
+	"github.com/ylallemant/panopticon/pkg/daemon/coerce"
 	"github.com/ylallemant/panopticon/pkg/daemon/process"
 	"github.com/ylallemant/panopticon/pkg/server/client"
 	"github.com/ylallemant/panopticon/pkg/server/service/graceful"
@@ -92,7 +93,10 @@ func (d *daemon) tick() error {
 		return err
 	}
 
-	log.Printf("%+#v", response)
+	err = coerce.Coerce(response)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

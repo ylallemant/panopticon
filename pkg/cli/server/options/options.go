@@ -1,5 +1,12 @@
 package options
 
+import (
+	"io/ioutil"
+	"log"
+
+	"gopkg.in/yaml.v2"
+)
+
 var Current = NewOptions()
 
 func NewOptions() *Options {
@@ -22,4 +29,20 @@ type Ports struct {
 
 type Options struct {
 	Ports Ports
+}
+
+func (o *Options) Load(path string) (*Options, error) {
+
+	yamlFile, err := ioutil.ReadFile(path)
+	if err != nil {
+		log.Printf("yamlFile.Get err   #%v ", err)
+		return nil, err
+	}
+	err = yaml.Unmarshal(yamlFile, o)
+	if err != nil {
+		log.Fatalf("Unmarshal: %v", err)
+		return nil, err
+	}
+
+	return o, nil
 }

@@ -24,9 +24,21 @@ func NewGrcpDaemonClient(endpoint string, options *ClientOptions) (DaemonClient,
 	host := strings.Replace(endpoint, "grpc://", "", -1)
 	log.Printf("target host: %s", host)
 
-	conn, err := grpc.Dial(host, grpc.WithInsecure(), grpc.WithTimeout(3*time.Second))
-	if err != nil {
-		return nil, err
+	var conn *grpc.ClientConn
+
+	for {
+		conn, err = grpc.Dial(
+			host,
+			grpc.WithInsecure(),
+			grpc.WithTimeout(3*time.Second),
+			grpc.WithBackoffConfig(grpc.DefaultBackoffConfig),
+		)
+		if err == nil {
+			break
+		}
+
+		log.Printf("failed connection to: %s", client.endpoint)
+		time.Sleep(15 * time.Second)
 	}
 
 	client.conn = conn
@@ -54,7 +66,14 @@ func (c *grcpDaemonClient) Metadata() *DaemonMetadata {
 
 func (c *grcpDaemonClient) Report(report *v1.HostProcessReportRequest) (*v1.HostActionResponse, error) {
 	log.Printf("sending report %s", time.Now())
-	return c.panopticon.Report(context.Background(), report, grpc.EmptyCallOption{})
+	response, err := c.panopticon.Report(context.Background(), report, grpc.EmptyCallOption{})
+
+	if err != nil {
+		response = new(v1.HostActionResponse)
+		log.Printf("reporting to %s failed with: %s", c.endpoint, err.Error())
+	}
+
+	return response, nil
 }
 
 func (c *grcpDaemonClient) Stop() {

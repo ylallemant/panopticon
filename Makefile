@@ -17,14 +17,14 @@ all: build build-linux
 
 clean: clean-dirs
 
-build: clean
+build: clean build-dirs
 	@$(MAKE) $(subst cmd, dist/linux/arm, $(wildcard cmd/*))
 	@$(MAKE) $(subst cmd, dist/linux/arm64, $(wildcard cmd/*))
-	@$(MAKE) $(subst cmd, dist/linux/amd64, $(wildcard cmd/*))
-	@$(MAKE) $(subst cmd, dist/darwin/arm64, $(wildcard cmd/*))
-	@$(MAKE) $(subst cmd, dist/darwin/amd64, $(wildcard cmd/*))
+	#@$(MAKE) $(subst cmd, dist/linux/amd64, $(wildcard cmd/*))
+	#@$(MAKE) $(subst cmd, dist/darwin/arm64, $(wildcard cmd/*))
+	#@$(MAKE) $(subst cmd, dist/darwin/amd64, $(wildcard cmd/*))
 
-dist/%: build-dirs
+dist/%:
 	$(eval OS := $(shell echo "$*" | cut -d'/' -f1))
 	$(eval ARCH := $(shell echo "$*" | cut -d'/' -f2))
 	$(eval BINARY_NAME := $(shell echo "$*" | cut -d'/' -f3))
@@ -37,6 +37,7 @@ dist/%: build-dirs
 		--rm \
 		-u $$(id -u):$$(id -g) \
 		-v "$$(pwd):/src" \
+		-v "$$(pwd)/dist/$(OS)/$(ARCH):/go/bin" \
 		-v "$$(pwd)/.gocache/:/go/cache" \
 		-w /src \
 		$(BUILD_IMAGE) \
@@ -51,7 +52,7 @@ dist/%: build-dirs
 			./hack/build.sh \
 		"
 
-test: build-dirs
+test: clean build-dirs
 	$(info run test)
 	@$(MAKE) $(subst cmd, dist/linux/amd64, $(wildcard cmd/*))
 	@docker run \

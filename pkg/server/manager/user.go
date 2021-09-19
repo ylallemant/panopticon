@@ -1,6 +1,8 @@
 package manager
 
 import (
+	"fmt"
+	"log"
 	"time"
 
 	v1 "github.com/ylallemant/panopticon/pkg/api/v1"
@@ -21,6 +23,38 @@ func ObserveUsers(timestamp time.Time, interval time.Duration, users []*v1.User,
 		if err != nil {
 			return reports, err
 		}
+
+		reportLog := fmt.Sprintf(`
+daily report for %s:
+  creation: %s
+  total screen time: %s
+  applications:
+`,
+			user.GetIdentifier(),
+			chronos.TimeFromInt64(report.GetTimestamp()),
+			chronos.DurationFromInt64(report.GetTotalDuration()),
+		)
+
+		for _, application := range report.GetApplications() {
+			reportLog += fmt.Sprintf("    %s:\n", application.GetIdentifier())
+
+			for _, duration := range application.GetDurations() {
+				reportLog += fmt.Sprintf("      %s: %s (start time %s)\n",
+					duration.GetIdentifier(),
+					chronos.DurationFromInt64(duration.GetDuration()),
+					chronos.TimeFromInt64(duration.GetStartTime()))
+			}
+		}
+
+		reportLog += fmt.Sprint("  devices:\n")
+		for _, device := range report.GetDevices() {
+			reportLog += fmt.Sprintf("    %s: %s (start time %s)\n",
+				device.GetIdentifier(),
+				chronos.DurationFromInt64(device.GetDuration()),
+				chronos.TimeFromInt64(device.GetStartTime()))
+		}
+
+		log.Print(reportLog)
 
 		reports = append(reports, report)
 	}

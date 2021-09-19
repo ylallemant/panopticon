@@ -11,7 +11,8 @@ import (
 )
 
 func Analyse(report *v1.HostProcessReportRequest, cache cache.Cache, classifier classifier.Classifier) error {
-	log.Print("------\nAnalyse")
+	log.Printf("------\nAnalyse host %s with %d reported processes",
+		report.Report.GetHostname(), len(report.GetReport().GetProcesses()))
 
 	host, err := Host(report, cache)
 	if err != nil {
